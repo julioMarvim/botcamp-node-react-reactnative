@@ -5,6 +5,52 @@ server.use(express.json())
 
 const users = ['Julio', 'Daniel', 'Sillas', 'Marvim']
 
+/**Middleware global tem prioridade sobre todos os outros middlewares, 
+ * é sempre chamado primeiro.
+*/
+server.use((req, res, next) =>{
+  console.log(`Método: ${req.method} URL: ${req.url}`)
+
+  console.time('Require')
+
+  /**Segue para a próxima rota que satisfaça a minha requisição*/
+  //return next()
+
+  /**Não necessariamente eu preciso sair do Meddleware atual para ir para o
+   * proximo apos chamar a função next(). Se eu não retornar a next() o que
+   * vier depois dele no meddleware atual só será executada depois que a
+   * rota chamada no next finalizar.
+   */
+
+   next()
+  
+   console.timeEnd('Require')
+
+})
+
+
+/**Middleware local */
+function checkUserExists(req, res, next){
+  if(!req.body.name){
+    //Retorna status 400 (Bad Request) e a mensagem descrita.
+    return res.status(400).json({error: 'User name is required.'});
+  }
+
+  return next()
+}
+
+function checkUserInArray(req, res, next){
+  const user = users[req.params.index]
+
+  if(!user){
+    return res.status(400).json({error: 'User does not exists.'});
+  }
+
+  res.user = user
+
+  return next()
+}
+
 /**Lista todos os usuários */
 server.get('/users', (req, res) =>{
   return res.json(users)
@@ -12,7 +58,7 @@ server.get('/users', (req, res) =>{
 
 
 /**Criar usuario */
-server.post('/users', (req, res) =>{
+server.post('/users', checkUserExists, (req, res) =>{
   const {name } = req.body
 
   users.push(name)
@@ -21,7 +67,7 @@ server.post('/users', (req, res) =>{
 })
 
 /**Atualizar Usuário */
-server.put('/users/:index', (req, res) =>{
+server.put('/users/:index', checkUserExists, checkUserInArray, (req, res) =>{
   const {index} = req.params
   const { name } = req.body
 
@@ -31,7 +77,7 @@ server.put('/users/:index', (req, res) =>{
 })
 
 /**Deletar usuário */
-server.delete('/users/:index', (req, res) =>{
+server.delete('/users/:index', checkUserInArray, (req, res) =>{
   const { index } = req.params
   
   users.splice(index, 1)
@@ -45,10 +91,11 @@ server.delete('/users/:index', (req, res) =>{
  * Esta requisição espera uma url parecida com:
  * http://localhost/3000/users/123123
  */
-server.get('/users/:index', (req, res) =>{
-  const { index } = req.params
-
-  return res.json(users[index])
+server.get('/users/:index', checkUserInArray, (req, res) =>{
+  /**res.user é preenchido dentro da função chekUsersInArray
+   * a variavel res foi alterada dentro do middleware
+   * */
+  return res.json(res.user)
 })
 
 server.listen(3000);
